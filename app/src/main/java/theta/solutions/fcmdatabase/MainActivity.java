@@ -8,6 +8,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -19,6 +20,15 @@ import com.google.firebase.iid.FirebaseInstanceId;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import theta.solutions.fcmdatabase.Helpers.Constants;
+import theta.solutions.fcmdatabase.Http.APIService;
+import theta.solutions.fcmdatabase.Http.ApiUtils;
+import theta.solutions.fcmdatabase.Models.Message;
+import theta.solutions.fcmdatabase.Models.NotifyData;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
@@ -83,9 +93,9 @@ public class MainActivity extends AppCompatActivity {
                 String name = inputName.getText().toString();
                 String email = inputEmail.getText().toString();
 
-                // Check for already existed userId
+                 //Check for already existed userId
                 if (TextUtils.isEmpty(userId)) {
-                    createUser(name, email);
+                    createUser(name, email,token);
                 } else {
                     updateUser(name, email);
                 }
@@ -93,6 +103,32 @@ public class MainActivity extends AppCompatActivity {
         });
 
         toggleButton();
+    }
+
+    private void SendNotification(String token,String title,String Message) {
+        NotifyData oNotifyData=new NotifyData(title,Message);
+        Message oMessage=new Message(token,oNotifyData,"");
+        Call<Message> callresponse= ApiUtils.getAPIService(Constants.BASEURLFCM).sendMessage(oMessage);
+        callresponse.enqueue(new Callback<Message>() {
+            @Override
+            public void onResponse(Call<Message> call, Response<Message> response) {
+
+                Log.d("Response ", "onResponse");
+                //t1.setText("Notification sent");
+                Message message = response.body();
+                if ( response.code()==201){
+                    Toast.makeText(MainActivity.this, "Successfully send", Toast.LENGTH_SHORT).show();
+                }
+               // Log.d("message", message.getMessage_id());
+
+            }
+
+            @Override
+            public void onFailure(Call<Message> call, Throwable t) {
+                Log.d("Response ", "onFailure");
+                //t1.setText("Notification failure");
+            }
+        });
     }
 
     // Changing button text
@@ -107,7 +143,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Creating new user node under 'users'
      */
-    private void createUser(String name, String email) {
+    private void createUser(String name, String email,String Token) {
         // TODO
         // In real apps this userId should be fetched
         // by implementing firebase auth
@@ -115,11 +151,13 @@ public class MainActivity extends AppCompatActivity {
             userId = mFirebaseDatabase.push().getKey();
         }
 
-        User user = new User(name, email);
+        User user = new User(name, email,Token);
 
         mFirebaseDatabase.child(userId).setValue(user);
 
         addUserChangeListener();
+
+        SendNotification("/topic/news","New Offer","Hello My first notification");
     }
 
     /**
